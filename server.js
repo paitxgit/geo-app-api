@@ -2,6 +2,8 @@ const express = require("express");
 const bodyParser = require("body-parser");
 const cors = require("cors");
 const mongoose = require("mongoose");
+const UserInfo = require("./models/UserInfo");
+
 require("dotenv").config();
 
 const app = express();
@@ -63,6 +65,30 @@ const salvarFoto = (foto) => {
     });
 };
 
+const salvarUserInfo = (userIp, userAgent, language, referer, screenSize) => {
+  const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
+
+  const novoUsuario = new UserInfo({
+    ip: userIp,
+    userAgent: userAgent,
+    language: language,
+    referer: referer,
+    screenSize: screenSize,
+    timestamp: timestamp,
+  });
+
+  return novoUsuario
+    .save()
+    .then((savedUser) => savedUser)
+    .catch((err) => {
+      console.error(
+        "Erro ao salvar as informações do usuário no MongoDB:",
+        err
+      );
+      throw err;
+    });
+};
+
 app.post("/salvar-localizacao", (req, res) => {
   console.log("\n=========== Nova requisição (Local) ===========");
 
@@ -89,6 +115,26 @@ app.post("/enviar-foto", (req, res) => {
     })
     .catch((error) => {
       res.status(500).json({ message: "Erro ao salvar a foto" });
+    });
+});
+
+app.post("/salvar-usuario", (req, res) => {
+  console.log("\n=========== Nova requisição (Usuário) ===========");
+
+  const userIp = req.headers["x-forwarded-for"] || req.connection.remoteAddress;
+  const userAgent = req.headers["user-agent"];
+  const language = req.headers["accept-language"];
+  const referer = req.headers["referer"];
+  const screenSize = req.body.screenSize || "Desconhecido";
+
+  salvarUserInfo(userIp, userAgent, language, referer, screenSize)
+    .then((user) => {
+      res.json({ message: "Informações do usuário salvas com sucesso!", user });
+    })
+    .catch((error) => {
+      res
+        .status(500)
+        .json({ message: "Erro ao salvar as informações do usuário" });
     });
 });
 
